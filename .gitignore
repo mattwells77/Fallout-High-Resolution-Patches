@@ -17,6 +17,8 @@
 mono_crash.*
 
 # Build results
+Dx9Enhanced_Debug/
+Dx9Enhanced_Release/
 [Dd]ebug/
 [Dd]ebugPublic/
 [Rr]elease/
