@@ -1,0 +1,130 @@
+/*
+The MIT License (MIT)
+Copyright © 2022 Matt Wells
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this
+software and associated documentation files (the “Software”), to deal in the
+Software without restriction, including without limitation the rights to use, copy,
+modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+and to permit persons to whom the Software is furnished to do so, subject to the
+following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
+#include "pch.h"
+
+#include "fixes.h"
+#include "memwrite.h"
+#include "F_Windows.h"
+#include "WinFall.h"
+
+
+int winRef_Pause = -1;
+void* SET_PAUSE_BG = nullptr;
+
+
+//______________________________________
+void __declspec(naked) pause_win_setup() {
+	//00436C8E  |. E8 A5F50900    CALL fallout2.004D6238
+
+	__asm {
+		push dword ptr ss : [esp + 0x8]
+		push dword ptr ss : [esp + 0x8]
+		push ecx
+		push ebx
+		call GenWinSetup
+		add esp, 0x10
+		mov winRef_Pause, eax
+		ret 0x8
+	}
+}
+
+
+//_________________________________________
+void __declspec(naked) pause_win_kill(void) {
+
+	__asm {
+		push ebx
+		push ecx
+		push esi
+		push edi
+		push ebp
+
+		push eax
+		call DestroyWin
+		add esp, 0x4
+		mov winRef_Pause, -1
+
+		pop ebp
+		pop edi
+		pop esi
+		pop ecx
+		pop ebx
+		ret
+	}
+}
+
+
+//___________________________________
+void __declspec(naked) fix_pause_bg() {
+
+	__asm {
+		push eax
+		push esi
+		push edi
+		push eax
+		call GetWinStruct
+		add esp, 0x4
+
+		mov ecx, dword ptr ds : [eax + 0x18]
+		pop edi
+		pop esi
+		pop eax
+		ret
+	}
+}
+
+
+//__________________________________
+void SetPauseBackGround(int isWorld) {
+
+	__asm {
+		mov eax, isWorld
+		call SET_PAUSE_BG
+	}
+}
+
+
+//___________________
+void ResizePauseWin() {
+
+	if (winRef_Pause != -1)
+		SetPauseBackGround(0);
+}
+
+
+
+
+//___________________
+void PauseScrnFixes() {
+
+
+	//Pause Screen
+ 	FuncReplace32(0x481FC9, 0x04085B, (DWORD)&pause_win_setup);
+
+	FuncReplace32(0x482227, 0x040829, (DWORD)&pause_win_kill);
+
+	MemWrite8(0x4822B2, 0xB9, 0xE8);
+	FuncWrite32(0x4822B3, 640, (DWORD)&fix_pause_bg);
+
+	SET_PAUSE_BG = (void*)FixAddress(0x48229C);
+}
